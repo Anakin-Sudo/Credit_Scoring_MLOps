@@ -1,0 +1,5 @@
+# Ignore .idea file in jetbrains projects
+.idea
+
+# Ignore .env files
+.env
