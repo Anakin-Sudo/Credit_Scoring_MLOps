@@ -1,0 +1,9 @@
+pandas~=2.2.0
+scikit-learn~=1.7.0
+imblearn~=0.0
+category_encoders~=2.8.1
+joblib~=1.4.2
+PyPDF2~=3.0.1
+python-dotenv~=1.1.1
+xgboost~=3.0.3
+mlflow~=3.1.1

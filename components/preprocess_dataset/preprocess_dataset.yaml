@@ -1,0 +1,33 @@
+$schema: http://azureml/sdk-2-0/CommandComponent.json
+name: preprocess-dataset
+display_name: Preprocess Dataset
+version: 1.0
+type: command
+inputs:
+  blob_name:
+    type: string
+  dropna_cols:
+    type: string
+    optional: true
+  drop_duplicates:
+    type: boolean
+    default: true
+  rename_map:
+    type: string
+    optional: true
+  dtype_map:
+    type: string
+    optional: true
+outputs:
+  output_data:
+    type: uri_file
+code: ./
+environment: azureml:credit-env:1
+command: >
+  python azure_ml_preprocessing_component.py
+  --blob_name ${{inputs.blob_name}}
+  --output_data ${{outputs.output_data}}
+  --dropna_cols ${{inputs.dropna_cols}}
+  --drop_duplicates ${{inputs.drop_duplicates}}
+  --rename_map ${{inputs.rename_map}}
+  --dtype_map ${{inputs.dtype_map}}

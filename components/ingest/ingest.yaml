@@ -1,0 +1,18 @@
+$schema: http://azureml/sdk-2-0/CommandComponent.json
+name: ingest-dataset
+display_name: Ingest Dataset
+version: 1.0
+type: command
+inputs:
+  blob_name:
+    type: string
+    description: Name of the blob in Azure Storage
+  output_csv:
+    type: string
+    description: Path to save the downloaded CSV file
+code: ./
+environment: azureml:PythonEnvironment:1
+command: >
+  python ingest.py
+  --blob_name ${{inputs.blob_name}}
+  --output_csv ${{inputs.output_csv}}

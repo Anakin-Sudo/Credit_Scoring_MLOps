@@ -1,0 +1,35 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: train-model
+display_name: Train Model
+version: "1.0"
+type: command
+
+inputs:
+  input_data:
+    type: uri_file
+  num_cols:
+    type: string
+  simple_cat_cols:
+    type: string
+  complex_cat_cols:
+    type: string
+  passthrough_cols:
+    type: string
+    optional: true
+
+outputs:
+  output_dir:
+    type: uri_folder
+
+code: ./
+
+environment: azureml:credit-env:1
+
+command: >
+  python train.py
+  --input_data ${{inputs.input_data}}
+  --output_dir ${{outputs.output_dir}}
+  --num_cols ${{inputs.num_cols}}
+  --simple_cat_cols ${{inputs.simple_cat_cols}}
+  --complex_cat_cols ${{inputs.complex_cat_cols}}
+  --passthrough_cols ${{inputs.passthrough_cols}}
