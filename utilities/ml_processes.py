@@ -5,6 +5,8 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from category_encoders import TargetEncoder
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from importlib import import_module
 
 
 def make_learning_pipeline(num_cols, simple_cat_cols, complex_cat_cols, model, passthrough_cols=None):
@@ -68,49 +70,71 @@ def make_learning_pipeline(num_cols, simple_cat_cols, complex_cat_cols, model, p
     return pipeline
 
 
-def preprocess_dataset(df, dropna_cols=None, drop_duplicates=True, rename_map=None, dtype_map=None, feature_eng_func=None):
+def run_preprocessing_df(
+    df: pd.DataFrame,
+    dropna_cols=None,
+    drop_duplicates=True,
+    rename_map=None,
+    dtype_map=None,
+    test_size: float = 0.2,
+    random_state: int = 42,
+    stratify_col: str = "target"
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Basic data engineering preprocessing: schema cleanup and deterministic features.
+    Apply preprocessing to an in-memory DataFrame and split into train/test sets.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Raw input dataset.
-    dropna_cols : list, optional
-        Drop rows with NA in these columns (default: None).
-    drop_duplicates : bool, optional
-        Whether to drop duplicate rows (default: True).
-    rename_map : dict, optional
-        Dictionary to rename columns, e.g. {'OldName': 'new_name'} (default: None).
-    dtype_map : dict, optional
-        Dictionary to cast dtypes, e.g. {'col1': 'int64', 'col2': 'category'} (default: None).
-    feature_eng_func : callable, optional
-        A function that takes df and returns df with engineered features (default: None).
+    Args:
+        df (pd.DataFrame): Input dataset.
+        dropna_cols (list[str], optional): Columns on which to drop NA rows.
+        drop_duplicates (bool): Whether to drop duplicates.
+        rename_map (dict, optional): Dict for renaming columns.
+        dtype_map (dict, optional): Dict for casting dtypes.
+        test_size (float): Proportion for test split.
+        random_state (int): Seed for reproducibility.
+        stratify_col (str): Column name to stratify on (e.g., "target").
 
-    Returns
-    -------
-    df : pd.DataFrame
-        Cleaned dataset ready for ML preprocessing/training.
+    Returns:
+        train_df (pd.DataFrame): Preprocessed training set.
+        test_df (pd.DataFrame): Preprocessed test set.
     """
 
-    # drop duplicates
-    if drop_duplicates:
-        df = df.drop_duplicates()
-
-    # drop rows with missing values in specified columns
+    # --- Cleaning ---
     if dropna_cols:
         df = df.dropna(subset=dropna_cols)
 
-    # rename columns
+    if drop_duplicates:
+        df = df.drop_duplicates()
+
     if rename_map:
         df = df.rename(columns=rename_map)
 
-    # enforce data types
     if dtype_map:
         df = df.astype(dtype_map)
 
-    # apply custom feature engineering if provided
-    if feature_eng_func:
-        df = feature_eng_func(df)
+    # --- Splitting ---
+    stratify_vals = df[stratify_col] if stratify_col and stratify_col in df.columns else None
 
-    return df
+    train_df, test_df = train_test_split(
+        df,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=stratify_vals
+    )
+
+    return train_df, test_df
+
+
+def load_model(class_path: str, params: dict):
+    """
+    Dynamically import and instantiate a model class from its string path.
+
+    Example:
+        load_model("sklearn.ensemble.RandomForestClassifier", {"n_estimators": 200})
+    """
+    try:
+        module_name, class_name = class_path.rsplit(".", 1)
+        module = import_module(module_name)
+        cls = getattr(module, class_name)
+        return cls(**params)
+    except Exception as e:
+        raise ValueError(f"Could not load model {class_path} with params {params}") from e

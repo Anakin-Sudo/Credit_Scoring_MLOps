@@ -1,11 +1,12 @@
 $schema: http://azureml/sdk-2-0/CommandComponent.json
 name: preprocess-dataset
 display_name: Preprocess Dataset
-version: 1.0
+version: 1.1
 type: command
+
 inputs:
-  blob_name:
-    type: string
+  input_data:
+    type: uri_file
   dropna_cols:
     type: string
     optional: true
@@ -18,16 +19,34 @@ inputs:
   dtype_map:
     type: string
     optional: true
+  test_size:
+    type: number
+    default: 0.2
+  random_state:
+    type: integer
+    default: 42
+  stratify_col:
+    type: string
+    default: target
+
 outputs:
-  output_data:
+  train_output:
     type: uri_file
+  test_output:
+    type: uri_file
+
 code: ./
 environment: azureml:credit-env:1
+
 command: >
   python azure_ml_preprocessing_component.py
-  --blob_name ${{inputs.blob_name}}
-  --output_data ${{outputs.output_data}}
+  --input_data ${{inputs.input_data}}
+  --train_output ${{outputs.train_output}}
+  --test_output ${{outputs.test_output}}
   --dropna_cols ${{inputs.dropna_cols}}
   --drop_duplicates ${{inputs.drop_duplicates}}
   --rename_map ${{inputs.rename_map}}
   --dtype_map ${{inputs.dtype_map}}
+  --test_size ${{inputs.test_size}}
+  --random_state ${{inputs.random_state}}
+  --stratify_col ${{inputs.stratify_col}}

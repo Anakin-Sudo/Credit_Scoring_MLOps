@@ -1,0 +1,23 @@
+$schema: http://azureml/sdk-2-0/CommandComponent.json
+name: evaluate-models-registry
+display_name: Evaluate All Registry Models by ROC-AUC
+version: 1.0
+type: command
+
+inputs: {}
+
+outputs:
+  metrics_output:
+    type: uri_file
+    description: "JSON file with ROC-AUC metrics for all registry models"
+  best_model_uri:
+    type: uri_file
+    description: "Text file containing MLflow URI of the best model (e.g. models:/credit_model_xgb/3)"
+
+code: ./
+environment: azureml:credit-env:1
+
+command: >
+  python evaluate.py
+  --metrics_output ${{outputs.metrics_output}}
+  --best_model_uri ${{outputs.best_model_uri}}

@@ -1,16 +1,11 @@
-# train.py
 import argparse
-import json
 import os
+import json
+import yaml
 import pandas as pd
-import joblib
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from xgboost import XGBClassifier
-
-import mlflow
-from utilities.ml_processes import make_learning_pipeline
+from utilities.ml_processes import make_learning_pipeline, load_model
+from utilities.mlflow_processes import train_and_register_model
 
 
 def main():
@@ -21,6 +16,7 @@ def main():
     parser.add_argument("--simple_cat_cols", type=str, help="Low-cardinality categorical columns (comma-separated)")
     parser.add_argument("--complex_cat_cols", type=str, help="High-cardinality categorical columns (comma-separated)")
     parser.add_argument("--passthrough_cols", type=str, default=None, help="Columns to passthrough (comma-separated)")
+    parser.add_argument("--config", type=str, required=True, help="YAML config file with models/params")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -30,28 +26,23 @@ def main():
     X = df.drop("target", axis=1)
     y = df["target"]
 
-    # Parse columns
+    # Parse feature groups
     num_cols = args.num_cols.split(",")
     simple_cat_cols = args.simple_cat_cols.split(",")
     complex_cat_cols = args.complex_cat_cols.split(",")
     passthrough_cols = args.passthrough_cols.split(",") if args.passthrough_cols else None
 
-    # Candidate models with fixed params (from experimentation)
-    candidates = {
-        "random_forest": RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42),
-        "log_reg": LogisticRegression(max_iter=1000, C=1.0, solver="lbfgs"),
-        "xgb": XGBClassifier(
-            n_estimators=200,
-            learning_rate=0.05,
-            max_depth=6,
-            use_label_encoder=False,
-            eval_metric="logloss"
-        )
-    }
+    # Load models from config
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
 
     metrics = {}
 
-    for name, model in candidates.items():
+    for name, spec in config["models"].items():
+        # Instantiate model dynamically
+        model = load_model(spec["class"], spec["params"])
+
+        # Build preprocessing + model pipeline
         pipeline = make_learning_pipeline(
             num_cols=num_cols,
             simple_cat_cols=simple_cat_cols,
@@ -60,24 +51,20 @@ def main():
             passthrough_cols=passthrough_cols
         )
 
-        pipeline.fit(X, y)
-        score = pipeline.score(X, y)
-        metrics[f"{name}_train_accuracy"] = score
-
-        # Log metrics & params with AML’s MLflow (implicit run)
-        mlflow.log_param(f"{name}_params", model.get_params())
-        mlflow.log_metric(f"{name}_train_accuracy", score)
-
-        # Log full model pipeline to AML registry
-        mlflow.sklearn.log_model(
-            sk_model=pipeline,
-            artifact_path=name,
-            registered_model_name=f"credit_model_{name}"  # appears in AML registry
+        # Train + log + register with MLflow
+        train_and_register_model(
+            pipeline=pipeline,
+            model_name=name,
+            X_train=X, y_train=y,    # Right now train=test, split later
+            X_test=X, y_test=y,
+            params=spec["params"],
+            tags={"type": name}
         )
 
-        print(f"Logged & registered: credit_model_{name} (acc={score:.4f})")
+        # Collect metrics for local artifact
+        metrics[f"{name}_train_accuracy"] = pipeline.score(X, y)
 
-    # Save metrics as JSON (optional artifact)
+    # Save metrics as JSON artifact
     metrics_path = os.path.join(args.output_dir, "metrics.json")
     with open(metrics_path, "w") as f:
         json.dump(metrics, f)

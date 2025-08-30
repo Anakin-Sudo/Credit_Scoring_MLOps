@@ -1,0 +1,33 @@
+models:
+  logistic_regression:
+    class: sklearn.linear_model.LogisticRegression
+    params:
+      solver: liblinear
+      max_iter: 1000
+      random_state: 42
+    tags:
+      family: linear
+      role: baseline
+
+  random_forest:
+    class: sklearn.ensemble.RandomForestClassifier
+    params:
+      n_estimators: 300
+      max_depth: 8
+      random_state: 42
+    tags:
+      family: tree
+      role: ensemble_baseline
+
+  xgboost:
+    class: xgboost.XGBClassifier
+    params:
+      n_estimators: 200
+      max_depth: 5
+      learning_rate: 0.1
+      subsample: 0.8
+      eval_metric: logloss
+      random_state: 42
+    tags:
+      family: boosting
+      role: strong_candidate
