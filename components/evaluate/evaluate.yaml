@@ -1,23 +1,45 @@
-$schema: http://azureml/sdk-2-0/CommandComponent.json
-name: evaluate-models-registry
-display_name: Evaluate All Registry Models by ROC-AUC
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: evaluate-models
+display_name: Evaluate Candidate Models
 version: 1.0
 type: command
 
-inputs: {}
+inputs:
+  test_data:
+    type: uri_file
+    description: Preprocessed test dataset (CSV)
+
+  selection_criteria:
+    type: string
+    description: JSON string defining how to pick the champion model
+    # Example:
+    # {
+    #   "primary": "auc_roc",
+    #   "tiebreaker": [{"metric": "recall", "threshold": 0.05}],
+    #   "min_threshold": 0.70,
+    #   "threshold": 0.5
+    # }
+
+  threshold:
+    type: number
+    default: 0.5
+    description: Decision threshold for classification (probability of default cutoff)
 
 outputs:
   metrics_output:
     type: uri_file
-    description: "JSON file with ROC-AUC metrics for all registry models"
-  best_model_uri:
+    description: JSON file with test-set metrics of the champion
+  best_model_pointer_file:
     type: uri_file
-    description: "Text file containing MLflow URI of the best model (e.g. models:/credit_model_xgb/3)"
-
+    description: Text file containing URI of the best model
 code: ./
+
 environment: azureml:credit-env:1
 
 command: >
   python evaluate.py
+  --test_data ${{inputs.test_data}}
+  --selection_criteria ${{inputs.selection_criteria}}
+  --threshold ${{inputs.threshold}}
   --metrics_output ${{outputs.metrics_output}}
-  --best_model_uri ${{outputs.best_model_uri}}
+  --best_model_pointer_file ${{outputs.best_model_pointer_file}}

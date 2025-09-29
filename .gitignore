@@ -6,3 +6,7 @@
 
 # Ignore data
 data/
+
+#Ignore datasets
+*.csv
+*.data

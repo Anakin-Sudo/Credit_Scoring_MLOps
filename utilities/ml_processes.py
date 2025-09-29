@@ -1,5 +1,4 @@
-from sklearn.pipeline import Pipeline as Sk_pipeline
-from imblearn.pipeline import Pipeline as Imb_pipeline
+from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -9,65 +8,44 @@ from sklearn.model_selection import train_test_split
 from importlib import import_module
 
 
-def make_learning_pipeline(num_cols, simple_cat_cols, complex_cat_cols, model, passthrough_cols=None):
+def build_preprocessor(feature_groups: dict):
     """
-    Build a preprocessing + modeling pipeline.
+    Build a preprocessing ColumnTransformer given feature groups.
 
-    Parameters
-    ----------
-    num_cols : list
-        List of numerical column names.
-    simple_cat_cols : list
-        List of low-cardinality categorical column names (one-hot encoding).
-    complex_cat_cols : list
-        List of high-cardinality categorical column names (target encoding).
-    passthrough_cols : list, optional
-        Columns to leave untouched (default: None).
+    Args:
+        feature_groups (dict): dictionary with keys:
+            - num_cols
+            - simple_cat_cols
+            - complex_cat_cols
 
-    Returns
-    -------
-    pipeline : Imb_pipeline
-        Full pipeline with preprocessing and model.
+    Returns:
+        sklearn ColumnTransformer
     """
+    num_cols = feature_groups.get("num_cols", [])
+    simple_cat_cols = feature_groups.get("simple_cat_cols", [])
+    complex_cat_cols = feature_groups.get("complex_cat_cols", [])
 
-    # numeric preprocessing: impute missing with mean, then standardize
-    num_prep = Sk_pipeline([
-        ('imputer', SimpleImputer(strategy='mean')),
-        ('scaler', StandardScaler())
+    # Pipelines
+    num_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler())
     ])
 
-    # simple categorical preprocessing: impute with most frequent, then one-hot encode
-    simple_cat_prep = Sk_pipeline([
-        ('imputer', SimpleImputer(strategy='most_frequent')),
-        ('encode', OneHotEncoder(handle_unknown='ignore'))
+    simple_cat_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("ohe", OneHotEncoder(handle_unknown="ignore"))
     ])
 
-    # complex categorical preprocessing: impute with most frequent, then target encode
-    complex_cat_prep = Sk_pipeline([
+    complex_cat_pipeline = Pipeline([
         ('imputer', SimpleImputer(strategy='most_frequent')),
         ('encode', TargetEncoder())
     ])
 
-    # column transformer to combine all preprocessing steps
-    transformers = [
-        ('num_prep', num_prep, num_cols),
-        ('simple_cat_prep', simple_cat_prep, simple_cat_cols),
-        ('complex_cat_prep', complex_cat_prep, complex_cat_cols)
-    ]
-
-    if passthrough_cols:
-        # passthrough columns remain as is
-        transformers.append(('passthrough', 'passthrough', passthrough_cols))
-
-    preprocessor = ColumnTransformer(transformers, remainder='drop')
-
-    # final pipeline: preprocessing + model
-    pipeline = Imb_pipeline([
-        ('preprocessor', preprocessor),
-        ('model', model)
+    return ColumnTransformer([
+        ("num", num_pipeline, num_cols),
+        ("simple_cat", simple_cat_pipeline, simple_cat_cols),
+        ("complex_cat", complex_cat_pipeline, complex_cat_cols)
     ])
-
-    return pipeline
 
 
 def run_preprocessing_df(
@@ -138,3 +116,45 @@ def load_model(class_path: str, params: dict):
         return cls(**params)
     except Exception as e:
         raise ValueError(f"Could not load model {class_path} with params {params}") from e
+
+
+def select_best_model(candidates, selection_criteria):
+    """
+    Select the best model based on CV metrics and tie-breaking rules.
+
+    Args:
+        candidates (list[dict]): List of candidates with 'metrics' dicts.
+        selection_criteria (dict): Config block with 'primary', 'tiebreaker', 'min_threshold'.
+    Returns:
+        dict: Best candidate (with metrics, uri, etc.)
+    """
+    primary_metric = selection_criteria["primary"]
+    min_threshold = selection_criteria.get("min_threshold", 0.0)
+    tiebreakers = selection_criteria.get("tiebreaker", [])
+    equality_threshold = tiebreakers[0].get("equality_threshold", 0.0) if tiebreakers else 0.0
+
+    # 1. Filter out candidates below min_threshold on the primary metric
+    valid = [c for c in candidates if c["metrics"].get(primary_metric, 0) >= min_threshold]
+    if not valid:
+        raise ValueError(f"No candidate reached min_threshold {min_threshold} on {primary_metric}")
+
+    # 2. Sort candidates by primary metric
+    valid.sort(key=lambda c: c["metrics"].get(primary_metric, 0), reverse=True)
+    best, second = valid[0], valid[1] if len(valid) > 1 else None
+
+    # 3. Apply tie-breakers if top two are "too close"
+    if second:
+        diff = abs(
+            best["metrics"].get(primary_metric, 0) -
+            second["metrics"].get(primary_metric, 0)
+        )
+        if diff <= equality_threshold:
+            for tb in tiebreakers:
+                metric = tb["metric"]
+                best_metric = best["metrics"].get(metric, 0)
+                second_metric = second["metrics"].get(metric, 0)
+                if second_metric > best_metric:
+                    best = second
+                    break
+
+    return best

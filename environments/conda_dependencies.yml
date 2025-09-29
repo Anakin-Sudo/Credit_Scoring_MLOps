@@ -6,10 +6,11 @@ dependencies:
   - python=3.10
   - pip
   - pip:
-      - azure-ai-ml
-      - azure-identity
-      - scikit-learn
-      - xgboost
       - pandas
+      - scikit-learn
+      - imblearn
+      - category_encoders
       - joblib
+      - python-dotenv
+      - xgboost
       - mlflow

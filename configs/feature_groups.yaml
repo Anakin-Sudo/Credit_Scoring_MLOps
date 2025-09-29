@@ -1,0 +1,40 @@
+# ===============================
+# Feature Groups Configuration
+# ===============================
+# Defines how columns are split into groups for preprocessing.
+# This file is consumed by train.py (via --feature_groups) to build the
+# ColumnTransformer pipeline consistently during training and inference.
+#
+# Groups:
+# - num_cols: numeric features → impute (median) + scale
+# - simple_cat_cols: low-cardinality categorical → impute (mode) + one-hot encode
+# - complex_cat_cols: high-cardinality categorical → impute (mode) + target/frequency encode
+# - passthrough_cols: columns to pass unchanged (if any)
+
+num_cols:
+  - Duration
+  - CreditAmount
+  - InstallmentRate
+  - ResidenceSince
+  - Age
+  - ExistingCredits
+  - PeopleLiable
+
+simple_cat_cols:
+  - OtherDetors
+  - OtherInstallmentPlans
+  - Housing
+  - Telephone
+  - ForeignWorker
+
+complex_cat_cols:
+  - Status
+  - CreditHistory
+  - Purpose
+  - Savings
+  - Employment
+  - SexAndStatus
+  - Property
+  - Job
+
+passthrough_cols: []

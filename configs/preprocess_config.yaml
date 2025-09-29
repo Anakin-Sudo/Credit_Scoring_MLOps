@@ -1,0 +1,38 @@
+# ===============================
+# Preprocess Config
+# ===============================
+# This config defines parameters for the preprocessing component.
+# It does NOT include the dataset URI (that comes from .env, via submit_pipeline.py).
+#
+# Purpose of preprocess:
+# - Apply lightweight hygiene (drop NAs, drop duplicates).
+# - Perform train/test split.
+# - Ensure stratification is respected for fair model training.
+#
+# Note:
+# - Schema enforcement (column renaming, dtypes) belongs to ETL, not here.
+# - Only hygiene + splitting should happen at this stage.
+# ===============================
+
+split:
+  # Proportion of the dataset to allocate to the test set.
+  # Example: 0.2 means 20% test, 80% train.
+  test_size: 0.2
+
+  # Random seed for reproducibility of the split.
+  random_state: 42
+
+  # Column name used for stratification.
+  # Ensures train/test sets preserve the same class distribution.
+  # Must exist in the dataset.
+  stratify_col: CreditRisk
+
+cleaning:
+  # Columns where rows with missing values (NAs) should be dropped.
+  # Example: ["Age", "Sex"] will drop any row where Age or Sex is NA.
+  # Leave empty list [] to skip NA dropping.
+  dropna_cols: []
+
+  # Whether to drop duplicate rows from the dataset.
+  # Recommended: true, to avoid information leakage from duplicated records.
+  drop_duplicates: true

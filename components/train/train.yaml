@@ -1,25 +1,38 @@
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: train-model
-display_name: Train Model
+display_name: Train Candidate Models
 version: "1.0"
 type: command
 
 inputs:
   input_data:
     type: uri_file
-  num_cols:
-    type: string
-  simple_cat_cols:
-    type: string
-  complex_cat_cols:
-    type: string
-  passthrough_cols:
-    type: string
-    optional: true
+    description: Preprocessed training dataset (CSV)
 
-outputs:
-  output_dir:
-    type: uri_folder
+  candidates:
+    type: string
+    description: JSON string with candidate models and hyperparameters
+
+  feature_groups:
+    type: string
+    description: JSON string with feature group definitions
+
+  random_state:
+    type: integer
+    default: 42
+    description: Random seed for reproducibility
+
+  cv_folds:
+    type: integer
+    default: 5
+    description: Number of cross-validation folds
+
+  threshold:
+    type: number
+    default: 0.5
+    description: Decision threshold for classification metrics (probability of default cutoff)
+
+# No outputs since models are registered directly into MLflow/AML registry
 
 code: ./
 
@@ -28,8 +41,8 @@ environment: azureml:credit-env:1
 command: >
   python train.py
   --input_data ${{inputs.input_data}}
-  --output_dir ${{outputs.output_dir}}
-  --num_cols ${{inputs.num_cols}}
-  --simple_cat_cols ${{inputs.simple_cat_cols}}
-  --complex_cat_cols ${{inputs.complex_cat_cols}}
-  --passthrough_cols ${{inputs.passthrough_cols}}
+  --candidates ${{inputs.candidates}}
+  --feature_groups ${{inputs.feature_groups}}
+  --random_state ${{inputs.random_state}}
+  --cv_folds ${{inputs.cv_folds}}
+  --threshold ${{inputs.threshold}}

@@ -1,52 +1,63 @@
-$schema: http://azureml/sdk-2-0/CommandComponent.json
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: preprocess-dataset
 display_name: Preprocess Dataset
-version: 1.1
+version: 1.0
 type: command
 
 inputs:
   input_data:
     type: uri_file
+    description: Raw input dataset (CSV from ETL/Blob)
   dropna_cols:
     type: string
     optional: true
+    description: Comma-separated list of columns to check for NAs
   drop_duplicates:
     type: boolean
     default: true
+    description: Whether to drop duplicate rows
   rename_map:
     type: string
     optional: true
+    description: JSON string defining column renames (e.g. '{"old":"new"}')
   dtype_map:
     type: string
     optional: true
+    description: JSON string defining column dtypes (e.g. '{"col":"int"}')
   test_size:
     type: number
     default: 0.2
+    description: Proportion for test split
   random_state:
     type: integer
     default: 42
+    description: Random seed for reproducibility
   stratify_col:
     type: string
-    default: target
+    description: Column used for stratified split (e.g., "CreditRisk")
 
 outputs:
   train_output:
     type: uri_file
+    description: Preprocessed training dataset (CSV)
   test_output:
     type: uri_file
+    description: Preprocessed test dataset (CSV)
 
 code: ./
+
 environment: azureml:credit-env:1
 
-command: >
-  python azure_ml_preprocessing_component.py
-  --input_data ${{inputs.input_data}}
-  --train_output ${{outputs.train_output}}
-  --test_output ${{outputs.test_output}}
-  --dropna_cols ${{inputs.dropna_cols}}
-  --drop_duplicates ${{inputs.drop_duplicates}}
-  --rename_map ${{inputs.rename_map}}
-  --dtype_map ${{inputs.dtype_map}}
-  --test_size ${{inputs.test_size}}
-  --random_state ${{inputs.random_state}}
-  --stratify_col ${{inputs.stratify_col}}
+command: >-
+  python preprocess_dataset.py
+    --input_data ${{inputs.input_data}}
+    $[[ --dropna_cols ${{inputs.dropna_cols}} ]]
+    --drop_duplicates ${{inputs.drop_duplicates}}
+    $[[ --rename_map ${{inputs.rename_map}} ]]
+    $[[ --dtype_map ${{inputs.dtype_map}} ]]
+    --test_size ${{inputs.test_size}}
+    --random_state ${{inputs.random_state}}
+    --stratify_col ${{inputs.stratify_col}}
+    --train_output ${{outputs.train_output}}
+    --test_output ${{outputs.test_output}}
+
